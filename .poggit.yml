@@ -1,0 +1,7 @@
+--- # Poggit-CI Manifest. Open the CI at https://poggit.pmmp.io/ci/Heisenburger69/TempRanks
+branches:
+- master
+projects:
+  TempRanks:
+    path: ""
+...
