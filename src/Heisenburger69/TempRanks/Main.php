@@ -22,10 +22,13 @@ class Main extends PluginBase implements Listener {
     }
 
     public function onEnable() : void{
-        $this->config = new Config($this->getDataFolder()."config.yml", Config::YAML, ["Time Left Message" => "You have {time_left} on your temporary {temprank} rank", "Rank Expired Message" => "Your {temprank} Rank has expired"]);
+        $this->config = new Config($this->getDataFolder()."config.yml", Config::YAML, ["Check Rank Expiry every 60 seconds" => true, "Time Left Message" => "You have {time_left} on your temporary {temprank} rank", "Rank Expired Message" => "Your {temprank} Rank has expired"]);
         $this->getServer()->getPluginManager()->registerEvents($this, $this);
         $this->db = new \SQLite3($this->getDataFolder() . "Ranks.db");
         $this->db->exec("CREATE TABLE IF NOT EXISTS ranks (player TEXT PRIMARY KEY COLLATE NOCASE, oldrank TEXT, endtime TEXT);");
+        if($this->config->get("Check Rank Expiry every 60 seconds") === true){
+            $this->getScheduler()->scheduleRepeatingTask(new CheckTask($this), 20);
+        }
     }
 
     public function onJoin(PlayerJoinEvent $event) {
@@ -34,9 +37,9 @@ class Main extends PluginBase implements Listener {
         $time = $this->getTimeLeft($playername);
         $pp = $this->getServer()->getPluginManager()->getPlugin("PurePerms");
         $rank =  $pp->getUserDataMgr()->getGroup($pp->getPlayer($playername), );
-        if($time !== null) {
+        if($time !== null && $time !== "No temprank") {
             $msg = $this->config->get("Time Left Message");
-            $msg = str_replace(array("{time_left}", "{temprank}", "&"), array($time, $rank, "ยง"), $msg);
+            $msg = str_replace(array("{time_left}", "{temprank}"), array($time, $rank), $msg);
             $player->sendMessage($msg);
         }
         $exp = $this->getExpiryDate($playername);
@@ -45,7 +48,7 @@ class Main extends PluginBase implements Listener {
         }
         if(strtotime($exp) < time()) {
             $msg = $this->config->get("Rank Expired Message");
-            $msg = str_replace(array("{temprank}", "&"), array($rank, "ยง"), $msg);
+            $msg = str_replace("{temprank}", $rank, $msg);
             $player->sendMessage($msg);
             $this->removeRank($playername);
         }
@@ -77,50 +80,56 @@ class Main extends PluginBase implements Listener {
                                                     switch ($args[4]) {
                                                         case "minutes":
                                                             $time = date("Y-m-d H:i:s", strtotime(date("Y-m-d H:i:s")." +$length minutes"));
-                                                            $stmt = $this->db->prepare("INSERT OR REPLACE INTO ranks (player, oldrank, endtime) VALUES (:player, :oldrank, :endtime);");
-                                                            $stmt->bindValue(":player", $playername);
-                                                            $stmt->bindValue(":oldrank", $oldrank);
-                                                            $stmt->bindValue(":endtime", $time);
-                                                            $stmt->execute();
-                                                            $ppplayer = $pp->getPlayer($args[1]);
-                                                            $pp->setGroup($ppplayer, $group);
-                                                            $sender->sendMessage(C::GREEN . "Rank set ree");
+                                                            $interval = "minutes";
                                                             break;
                                                         case "hours":
                                                             $time = date("Y-m-d H:i:s", strtotime(date("Y-m-d H:i:s")." +$length hours"));
-                                                            $stmt = $this->db->prepare("INSERT OR REPLACE INTO ranks (player, oldrank, endtime) VALUES (:player, :oldrank, :endtime);");
-                                                            $stmt->bindValue(":player", $playername);
-                                                            $stmt->bindValue(":oldrank", $oldrank);
-                                                            $stmt->bindValue(":endtime", $time);
-                                                            $stmt->execute();
-                                                            $ppplayer = $pp->getPlayer($args[1]);
-                                                            $pp->setGroup($ppplayer, $group);
-                                                            $sender->sendMessage(C::GREEN . "Rank set ree");
+                                                            $interval = "hours";
                                                             break;
                                                         case "days":
                                                             $time = date("Y-m-d H:i:s", strtotime(date("Y-m-d H:i:s")." +$length days"));
-                                                            $stmt = $this->db->prepare("INSERT OR REPLACE INTO ranks (player, oldrank, endtime) VALUES (:player, :oldrank, :endtime);");
-                                                            $stmt->bindValue(":player", $playername);
-                                                            $stmt->bindValue(":oldrank", $oldrank);
-                                                            $stmt->bindValue(":endtime", $time);
-                                                            $stmt->execute();
-                                                            $ppplayer = $pp->getPlayer($args[1]);
-                                                            $pp->setGroup($ppplayer, $group);
-                                                            $sender->sendMessage(C::GREEN . "Rank set ree");
+                                                            $interval = "days";
                                                             break;
                                                     }
+                                                    $stmt = $this->db->prepare("INSERT OR REPLACE INTO ranks (player, oldrank, endtime) VALUES (:player, :oldrank, :endtime);");
+                                                    $stmt->bindValue(":player", $playername);
+                                                    $stmt->bindValue(":oldrank", $oldrank);
+                                                    $stmt->bindValue(":endtime", $time);
+                                                    $stmt->execute();
+                                                    $ppplayer = $pp->getPlayer($args[1]);
+                                                    $pp->setGroup($ppplayer, $group);
+                                                    $sender->sendMessage(C::GREEN . "You set the $group Rank to $playername for $length $interval");
+                                                } else {
+                                                    $sender->sendMessage(C::RED . "Use /temprank set <player> <group> <duration> <minutes/hours/days>" . "\n" . C::AQUA . "For Example: /temprank set Steve Admin 5 minutes");
                                                 }
                                             } else {
-                                                $sender->sendMessage(C::GREEN . "$args[3] is not int");
+                                                $sender->sendMessage(C::RED . "$args[3] is not a positive integer");
                                             }
+                                        } else {
+                                            $sender->sendMessage(C::RED . "Use /temprank set <player> <group> <duration> <minutes/hours/days>" . "\n" . C::AQUA . "For Example: /temprank set Steve Admin 5 minutes");
                                         }
                                     } else {
                                         $sender->sendMessage(C::RED . "Group $args[2] not found!");
-                                        return true;
                                     }
+                                } else {
+                                    $sender->sendMessage(C::RED . "Use /temprank set <player> <group> <duration> <minutes/hours/days>" . "\n" . C::AQUA . "For Example: /temprank set Steve Admin 5 minutes");
                                 }
+                            } else {
+                                $sender->sendMessage(C::RED . "Use /temprank set <player> <group> <duration> <minutes/hours/days>" . "\n" . C::AQUA . "For Example: /temprank set Steve Admin 5 minutes");
                             }
+                        } elseif($args[0] === "remove") {
+                            if(isset($args[1])) {
+                                $playername = $args[1];
+                                $this->removeRank($playername);
+                                $sender->sendMessage(C::GREEN . "Temp Rank successfully removed!");
+                            } else {
+                                $sender->sendMessage(C::RED . "Use /temprank remove <player>");
+                            }
+                        } else {
+                            $sender->sendMessage(C::RED . "Use /temprank set/remove");
                         }
+                    } else {
+                        $sender->sendMessage(C::RED . "Use /temprank set/remove");
                     }
                     return true;
                 }
@@ -133,7 +142,7 @@ class Main extends PluginBase implements Listener {
         $date = date("Y-m-d H:i:s");
         $enddate = $this->getExpiryDate($playername);
         if($enddate === null) {
-            return null;
+            return "No temprank";
         }
         if(strtotime($enddate) < time()) {
             return null;
