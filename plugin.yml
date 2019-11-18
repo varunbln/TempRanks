@@ -1,0 +1,18 @@
+name: TempRanks
+main: Heisenburger69\TempRanks\Main
+version: 0.6.9
+api: 3.9.0
+load: POSTWORLD
+author: Heisenburger69
+description: Give temporary ranks to players
+
+commands:
+ temprank:
+  description: "Manage temporary ranks"
+  usage: "/temprank"
+  permission: temprank.command
+
+permissions:
+  temprank.command:
+   default: op
+   description: "Allows the use of /temprank"
