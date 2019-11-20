@@ -9,7 +9,7 @@ description: Give temporary ranks to players
 commands:
  temprank:
   description: "Manage temporary ranks"
-  usage: "/temprank"
+  usage: "/temprank set/remove"
   permission: temprank.command
 
 permissions:
