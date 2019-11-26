@@ -5,6 +5,7 @@ api: 3.9.0
 load: POSTWORLD
 author: Heisenburger69
 description: Give temporary ranks to players
+depend: [PurePerms]
 
 commands:
  temprank:

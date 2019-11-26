@@ -18,11 +18,6 @@ class Main extends PluginBase implements Listener
     /* @var Config */
     public $config;
 
-    public function onLoad()
-    {
-        @mkdir($this->getDataFolder());
-    }
-
     public function onEnable(): void
     {
         $this->config = new Config($this->getDataFolder() . "config.yml", Config::YAML, ["Check Rank Expiry every 60 seconds" => true, "Time Left Message" => "You have {time_left} on your temporary {temprank} rank", "Rank Expired Message" => "Your {temprank} Rank has expired"]);
@@ -81,7 +76,6 @@ class Main extends PluginBase implements Listener
                             if ($group !== null) {
                                 $time = $this->parseTimeFormat($args[3]);
                                 $endtime = date("Y-m-d H:i:s", strtotime(date("Y-m-d H:i:s")) + $time);
-                                var_dump($endtime);
                                 $stmt = $this->db->prepare("INSERT OR REPLACE INTO ranks (player, oldrank, endtime) VALUES (:player, :oldrank, :endtime);");
                                 $stmt->bindValue(":player", $playername);
                                 $stmt->bindValue(":oldrank", $oldrank);
