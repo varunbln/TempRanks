@@ -35,7 +35,7 @@ class Main extends PluginBase implements Listener
         $playername = $player->getName();
         $time = $this->getTimeLeft($playername);
         $pp = $this->getServer()->getPluginManager()->getPlugin("PurePerms");
-        $rank = $pp->getUserDataMgr()->getGroup($pp->getPlayer($playername), );
+        $rank = $pp->getUserDataMgr()->getGroup($pp->getPlayer($playername));
         if ($time !== null && $time !== "No temprank") {
             $msg = $this->config->get("Time Left Message");
             $msg = str_replace(array("{time_left}", "{temprank}"), array($time, $rank), $msg);
@@ -65,7 +65,7 @@ class Main extends PluginBase implements Listener
                                 $sender->sendMessage(C::RED . "Do /temprank set <player> <rank> <duration>\n" . C::AQUA . "For Example: /temprank set Steve Admin 1d12h\nYear = y, Month = m, Day = d, Hour = h, Minute = i, Seconds = s");
                                 return true;
                             }
-                            $oldrank = $pp->getUserDataMgr()->getGroup($pp->getPlayer($args[1]), );
+                            $oldrank = $pp->getUserDataMgr()->getGroup($pp->getPlayer($args[1]));
                             $player = $this->getServer()->getPlayer($args[0]);
                             if ($player !== null) {
                                 $playername = $player->getName();
