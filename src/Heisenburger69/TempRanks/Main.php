@@ -12,13 +12,13 @@ use pocketmine\command\CommandSender;
 use pocketmine\command\Command;
 use pocketmine\utils\Config;
 use pocketmine\utils\TextFormat as C;
-use SQLite3;
 
 class Main extends PluginBase
 {
 
     /* @var Config */
     public $config;
+<<<<<<< HEAD
     /**
      * @var SQLite3
      */
@@ -37,10 +37,19 @@ class Main extends PluginBase
         $this->saveDefaultConfig();
         $this->getServer()->getPluginManager()->registerEvents(new EventListener($this), $this);
         $this->db = new SQLite3($this->getDataFolder() . "Ranks.db");
+=======
+
+    public function onEnable(): void
+    {
+        $this->config = new Config($this->getDataFolder() . "config.yml", Config::YAML, ["Check Rank Expiry every 60 seconds" => true, "Time Left Message" => "You have {time_left} on your temporary {temprank} rank", "Rank Expired Message" => "Your {temprank} Rank has expired"]);
+        $this->getServer()->getPluginManager()->registerEvents($this, $this);
+        $this->db = new \SQLite3($this->getDataFolder() . "Ranks.db");
+>>>>>>> parent of 2ad0e74... Begin Cleanup
         $this->db->exec("CREATE TABLE IF NOT EXISTS ranks (player TEXT PRIMARY KEY COLLATE NOCASE, oldrank TEXT, endtime TEXT);");
-        if ($this->getConfig()->get("Check Rank Expiry every 60 seconds") === true) {
+        if ($this->config->get("Check Rank Expiry every 60 seconds") === true) {
             $this->getScheduler()->scheduleRepeatingTask(new CheckTask($this), 20);
         }
+<<<<<<< HEAD
         $this->mode = $this->getConfig()->get("Mode");
         if($this->mode !== "PurePerms" || $this->mode !== "Hierarchy") {
             $this->mode = "PurePerms";
@@ -49,6 +58,31 @@ class Main extends PluginBase
         if($this->mode === "Hierarchy" && $this->getServer()->getPluginManager()->getPlugin("Hierarchy") === null) {
             $this->mode = "PurePerms";
             $this->getLogger()->emergency("Hierarchy Plugin not found. Reverted to PurePerms");
+=======
+    }
+
+    public function onJoin(PlayerJoinEvent $event)
+    {
+        $player = $event->getPlayer();
+        $playername = $player->getName();
+        $time = $this->getTimeLeft($playername);
+        $pp = $this->getServer()->getPluginManager()->getPlugin("PurePerms");
+        $rank = $pp->getUserDataMgr()->getGroup($pp->getPlayer($playername));
+        if ($time !== null && $time !== "No temprank") {
+            $msg = $this->config->get("Time Left Message");
+            $msg = str_replace(array("{time_left}", "{temprank}"), array($time, $rank), $msg);
+            $player->sendMessage($msg);
+        }
+        $exp = $this->getExpiryDate($playername);
+        if ($exp === null) {
+            return;
+        }
+        if (strtotime($exp) < time()) {
+            $msg = $this->config->get("Rank Expired Message");
+            $msg = str_replace("{temprank}", $rank, $msg);
+            $player->sendMessage($msg);
+            $this->removeRank($playername);
+>>>>>>> parent of 2ad0e74... Begin Cleanup
         }
         $this->groupMgr = new GroupManager($this);
     }
