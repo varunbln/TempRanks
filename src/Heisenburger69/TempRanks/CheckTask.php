@@ -7,12 +7,16 @@ use pocketmine\scheduler\Task;
 
 class CheckTask extends Task
 {
+    /**
+     * @var Main
+     */
+    private $plugin;
 
     /**
      * CheckTask constructor.
-     * @param Main $param
+     * @param Main $plugin
      */
-    public function __construct(\Heisenburger69\TempRanks\Main $plugin)
+    public function __construct(Main $plugin)
     {
         $this->plugin = $plugin;
     }
