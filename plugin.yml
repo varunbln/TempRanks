@@ -6,7 +6,6 @@ load: POSTWORLD
 author: Heisenburger69
 description: Give temporary ranks to players
 depend: [PurePerms]
-softdepend: [Hierarchy]
 
 commands:
  temprank:
