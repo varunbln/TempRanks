@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Heisenburger69\TempRanks;
 
-use pocketmine\event\Listener;
+use DateTime;
+use Exception;
 use pocketmine\event\player\PlayerJoinEvent;
 use pocketmine\plugin\PluginBase;
 use pocketmine\command\CommandSender;
@@ -13,7 +14,7 @@ use pocketmine\utils\Config;
 use pocketmine\utils\TextFormat as C;
 use SQLite3;
 
-class Main extends PluginBase implements Listener
+class Main extends PluginBase
 {
 
     /* @var Config */
@@ -21,12 +22,20 @@ class Main extends PluginBase implements Listener
     /**
      * @var SQLite3
      */
-    private $db;
+    public $db;
+    /**
+     * @var string
+     */
+    public $mode;
+    /**
+     * @var GroupManager
+     */
+    private $groupMgr;
 
     public function onEnable(): void
     {
         $this->saveDefaultConfig();
-        $this->getServer()->getPluginManager()->registerEvents($this, $this);
+        $this->getServer()->getPluginManager()->registerEvents(new EventListener($this), $this);
         $this->db = new SQLite3($this->getDataFolder() . "Ranks.db");
         $this->db->exec("CREATE TABLE IF NOT EXISTS ranks (player TEXT PRIMARY KEY COLLATE NOCASE, oldrank TEXT, endtime TEXT);");
         if ($this->getConfig()->get("Check Rank Expiry every 60 seconds") === true) {
@@ -35,32 +44,13 @@ class Main extends PluginBase implements Listener
         $this->mode = $this->getConfig()->get("Mode");
         if($this->mode !== "PurePerms" || $this->mode !== "Hierarchy") {
             $this->mode = "PurePerms";
-            $this->getLogger()->emergency("TempRanks Mode incorrectly configured.");
+            $this->getLogger()->emergency("TempRanks Mode incorrectly configured. Reverted to PurePerms");
         }
-    }
-
-    public function onJoin(PlayerJoinEvent $event)
-    {
-        $player = $event->getPlayer();
-        $playername = $player->getName();
-        $time = $this->getTimeLeft($playername);
-        $pp = $this->getServer()->getPluginManager()->getPlugin("PurePerms");
-        $rank = $pp->getUserDataMgr()->getGroup($pp->getPlayer($playername));
-        if ($time !== null && $time !== "No temprank") {
-            $msg = $this->getConfig()->get("Time Left Message");
-            $msg = str_replace(array("{time_left}", "{temprank}"), array($time, $rank), $msg);
-            $player->sendMessage($msg);
+        if($this->mode === "Hierarchy" && $this->getServer()->getPluginManager()->getPlugin("Hierarchy") === null) {
+            $this->mode = "PurePerms";
+            $this->getLogger()->emergency("Hierarchy Plugin not found. Reverted to PurePerms");
         }
-        $exp = $this->getExpiryDate($playername);
-        if ($exp === null) {
-            return;
-        }
-        if (strtotime($exp) < time()) {
-            $msg = $this->getConfig()->get("Rank Expired Message");
-            $msg = str_replace("{temprank}", $rank, $msg);
-            $player->sendMessage($msg);
-            $this->removeRank($playername);
-        }
+        $this->groupMgr = new GroupManager($this);
     }
 
     public function onCommand(CommandSender $sender, Command $command, string $label, array $args): bool
@@ -164,36 +154,13 @@ class Main extends PluginBase implements Listener
         return (string)$resultArr["endtime"];
     }
 
-    public function getOldGroup($playername)
-    {
-        $stmt = $this->db->prepare("SELECT oldrank FROM ranks WHERE player = :player;");
-        $stmt->bindValue(":player", $playername);
-        $result = $stmt->execute();
-        $resultArr = $result->fetchArray(SQLITE3_ASSOC);
-        if (empty($resultArr)) {
-            return null;
-        }
-        return (string)$resultArr["oldrank"];
-    }
+    //Thanks Thunder
 
-    public function removeRank($playername)
-    {
-        $pp = $this->getServer()->getPluginManager()->getPlugin("PurePerms");
-        $ppplayer = $pp->getPlayer($playername);
-        $group = $this->getOldGroup($playername);
-        if ($group === null) {
-            $ppgroup = $pp->getDefaultGroup();
-            $pp->setGroup($ppplayer, $ppgroup);
-            return;
-        }
-        $ppgroup = $pp->getGroup($group);
-        $pp->setGroup($ppplayer, $ppgroup);
-        $stmt = $this->db->prepare("DELETE FROM ranks WHERE player = :player;");
-        $stmt->bindValue(":player", $playername);
-        $stmt->execute();
-    }
-
-    public function parseTimeFormat(string $duration): ?int//////Thanks Thunder
+    /**
+     * @param string $duration
+     * @return int|null
+     */
+    public function parseTimeFormat(string $duration): ?int
     {
         $parts = str_split($duration);
         $time_units = ['y' => 'year', 'm' => 'month', 'w' => 'week', 'd' => 'day', 'h' => 'hour', 'i' => 'minute', 's' => 'second']; //Array of replacement
@@ -217,10 +184,15 @@ class Main extends PluginBase implements Listener
         return $epoch;
     }
 
-    public function parseSecondToHuman($seconds): ?string/////Thanks Thunder
+    /**
+     * @param $seconds
+     * @return string|null
+     * @throws Exception
+     */
+    public function parseSecondToHuman($seconds): ?string
     {
-        $dt1 = new \DateTime("@0");
-        $dt2 = new \DateTime("@$seconds");
+        $dt1 = new DateTime("@0");
+        $dt2 = new DateTime("@$seconds");
         $diff = $dt1->diff($dt2);
         if ($diff === false) return null;
         $str = [];
@@ -237,6 +209,5 @@ class Main extends PluginBase implements Listener
         }
         return $str;
     }
-
 
 }
